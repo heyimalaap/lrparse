@@ -16,6 +16,27 @@ enum class Token {
 	ID, PLUS, MULT, BRACKET_OPEN, BRACKET_CLOSE, EOI, ERR
 };
 
+string token_to_str(const Token& token) {
+	switch(token) {
+		case Token::ID:
+			return "<ID>";
+		case Token::PLUS:
+			return "<PLUS>";
+		case Token::MULT:
+			return "<MULT>";
+		case Token::BRACKET_OPEN:
+			return "<BRACKET_OPEN>";
+		case Token::BRACKET_CLOSE:
+			return "<BRACKET_CLOSE>";
+		case Token::EOI:
+			return "<$>";
+		case Token::ERR:
+			return "<ERROR>";
+		default:
+			return "unrecogonized token";
+	}
+}
+
 class Lexer {
 public:
 	Lexer(const string input) {
@@ -50,12 +71,11 @@ public:
 				return Token::ERR;
 		}
 	}
-
-	Token peek() {
-		int _cur = cur;
-		Token p = next();
-		cur = _cur;
-		return p;
+	
+	void display_current_state(const string& msg) {
+		cout << input_buffer << endl;
+		for(int i = 0; i < cur; i++) cout << ' ';
+		cout << "^ " << msg << endl;
 	}
 
 private:
@@ -112,6 +132,7 @@ public:
 		Lexer lex(input);
 		Token a = lex.next();
 		while (true) {
+			if (a == Token::ERR) return false;
 			int s = parse_stack.top();
 			if (action_map[{s, a}]->type == Action::Shift) {
 				ShiftAction* sa = reinterpret_cast<ShiftAction*>(action_map[{s, a}]);
@@ -122,7 +143,7 @@ public:
 				for (int i = 0; i < ra->pop_amt; i++) parse_stack.pop();
 				int t = parse_stack.top();
 				if (goto_map[{t, ra->production_lhs}] == -1) {
-					error(a);
+					error(a, lex);
 					return false;
 				}
 				parse_stack.push(goto_map[{t, ra->production_lhs}]);
@@ -130,7 +151,7 @@ public:
 			} else if (action_map[{s, a}]->type == Action::Accept) {
 				return true;
 			} else {
-				error(a);
+				error(a, lex);
 				return false;
 			}
 		}
@@ -140,8 +161,9 @@ private:
 	map<pair<int, Token>, Action*> action_map;
 	map<pair<int, string>, int> goto_map;
 
-	void error(Token cur_token) {
-		cout << "Encountered error while parsing" << endl;
+	void error(Token cur_token, Lexer& lex) {
+		cout << "Encountered error while parsing : Unexpected token " << token_to_str(cur_token) << endl;
+		lex.display_current_state("Parse error");
 	}
 };
 
@@ -204,5 +226,8 @@ int main() {
 
 	// Create parser
 	Parser parser(action_map, goto_map);
-	parser.parse("id + id * id");
+	string input;
+	cout << "Enter string to parse :";
+	getline(cin, input);
+	parser.parse(input);
 }
