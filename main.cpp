@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <stack>
 #include <map>
@@ -11,6 +12,18 @@ using namespace std;
 		cur = lookahead + 1; \
 		return tkn;
 
+template <class T, class Container = std::deque<T>>
+class printable_stack : public std::stack<T, Container> {
+	friend std::ostream& operator<<(std::ostream& os, const printable_stack<T, Container>& stk) {
+		stringstream ss;
+		ss << "[";
+		for (auto i : stk.c)
+			ss << " " << i;
+		ss << " ]";
+		os << ss.str();
+		return os;
+	}
+};
 
 enum class Token {
 	ID, PLUS, MULT, BRACKET_OPEN, BRACKET_CLOSE, EOI, ERR
@@ -71,6 +84,14 @@ public:
 				return Token::ERR;
 		}
 	}
+
+	friend ostream& operator<<(ostream& os, const Lexer& lex) {
+		stringstream ss;
+		for (int i = (lex.input_buffer[lex.cur] == ' ')? lex.cur + 1 : lex.cur; i < lex.input_buffer.size(); i++) ss << lex.input_buffer[i];
+		ss << " $";
+		os << ss.str();
+		return os;
+	}
 	
 	void display_current_state(const string& msg) {
 		cout << input_buffer << endl;
@@ -130,6 +151,8 @@ public:
 
 	bool parse(const string& input) {
 		Lexer lex(input);
+		cout << left << setw(25) << "Stack"     << setw(25) << "Current Token" << setw(25) << "Input" << setw(25) << "Action" << endl;
+		cout << left << setw(25) << parse_stack << setw(25) << "- "            << setw(25) << lex     << setw(25) << "-"<< endl;
 		Token a = lex.next();
 		while (true) {
 			if (a == Token::ERR) return false;
@@ -137,6 +160,7 @@ public:
 			if (action_map[{s, a}]->type == Action::Shift) {
 				ShiftAction* sa = reinterpret_cast<ShiftAction*>(action_map[{s, a}]);
 				parse_stack.push(sa->shift_state);
+				cout << left << setw(25) << parse_stack << setw(25) << token_to_str(a) << setw(25) << lex << setw(25) << "Shift to " + to_string(sa->shift_state) << endl;
 				a = lex.next();
 			} else if (action_map[{s, a}]->type  == Action::Reduce) {
 				ReduceAction* ra = reinterpret_cast<ReduceAction*>(action_map[{s, a}]);
@@ -147,8 +171,10 @@ public:
 					return false;
 				}
 				parse_stack.push(goto_map[{t, ra->production_lhs}]);
-				cout << "Using production " << ra->production_lhs << " -> " << ra->production_rhs << endl;
+				cout << left << setw(25) << parse_stack << setw(25) << token_to_str(a) << setw(25) << lex << setw(25) << "Reduce by " + ra->production_lhs + " -> " + ra->production_rhs << endl;
+				//cout << "Using production " << ra->production_lhs << " -> " << ra->production_rhs << endl;
 			} else if (action_map[{s, a}]->type == Action::Accept) {
+				cout << left << setw(25) << parse_stack << setw(25) << token_to_str(a) << setw(25) << lex << setw(25) << "Accepted" << endl;
 				return true;
 			} else {
 				error(a, lex);
@@ -157,13 +183,18 @@ public:
 		}
 	}
 private:
-	stack<int> parse_stack;
+	printable_stack<int> parse_stack;
 	map<pair<int, Token>, Action*> action_map;
 	map<pair<int, string>, int> goto_map;
 
 	void error(Token cur_token, Lexer& lex) {
 		cout << "Encountered error while parsing : Unexpected token " << token_to_str(cur_token) << endl;
 		lex.display_current_state("Parse error");
+	}
+
+	void print_state() {
+		cout << "This is test string lol this string is supposed to be very big lol lets see";
+		cout << "lol " << endl;
 	}
 };
 
@@ -196,7 +227,7 @@ int main() {
 	action_map[{1, Token::PLUS}]  = SHFT_ACTN(6) ; action_map[{1, Token::MULT}]  = ERR_ACTN     ; action_map[{1, Token::BRACKET_OPEN}]  = ERR_ACTN     ; action_map[{1, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{1, Token::ID}]  = ERR_ACTN     ; action_map[{1, Token::EOI}]  = ACC_ACTN    ;
 	action_map[{2, Token::PLUS}]  = REDC_ACTN(2) ; action_map[{2, Token::MULT}]  = SHFT_ACTN(7) ; action_map[{2, Token::BRACKET_OPEN}]  = ERR_ACTN     ; action_map[{2, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{2, Token::ID}]  = ERR_ACTN     ; action_map[{2, Token::EOI}]  = REDC_ACTN(2);
 	action_map[{3, Token::PLUS}]  = REDC_ACTN(4) ; action_map[{3, Token::MULT}]  = REDC_ACTN(4) ; action_map[{3, Token::BRACKET_OPEN}]  = ERR_ACTN     ; action_map[{3, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{3, Token::ID}]  = ERR_ACTN     ; action_map[{3, Token::EOI}]  = REDC_ACTN(4);
-	action_map[{4, Token::PLUS}]  = ERR_ACTN     ; action_map[{4, Token::MULT}]  = ERR_ACTN     ; action_map[{4, Token::BRACKET_OPEN}]  = SHFT_ACTN(11); action_map[{4, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{4, Token::ID}]  = SHFT_ACTN(11); action_map[{4, Token::EOI}]  = ERR_ACTN    ;
+	action_map[{4, Token::PLUS}]  = ERR_ACTN     ; action_map[{4, Token::MULT}]  = ERR_ACTN     ; action_map[{4, Token::BRACKET_OPEN}]  = SHFT_ACTN(11); action_map[{4, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{4, Token::ID}]  = SHFT_ACTN(12); action_map[{4, Token::EOI}]  = ERR_ACTN    ;
 	action_map[{5, Token::PLUS}]  = REDC_ACTN(6) ; action_map[{5, Token::MULT}]  = REDC_ACTN(6) ; action_map[{5, Token::BRACKET_OPEN}]  = ERR_ACTN     ; action_map[{5, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{5, Token::ID}]  = ERR_ACTN     ; action_map[{5, Token::EOI}]  = REDC_ACTN(6);
 	action_map[{6, Token::PLUS}]  = ERR_ACTN     ; action_map[{6, Token::MULT}]  = ERR_ACTN     ; action_map[{6, Token::BRACKET_OPEN}]  = SHFT_ACTN(4) ; action_map[{6, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{6, Token::ID}]  = SHFT_ACTN(5) ; action_map[{6, Token::EOI}]  = ERR_ACTN    ;
 	action_map[{7, Token::PLUS}]  = ERR_ACTN     ; action_map[{7, Token::MULT}]  = ERR_ACTN     ; action_map[{7, Token::BRACKET_OPEN}]  = SHFT_ACTN(4) ; action_map[{7, Token::BRACKET_CLOSE}]  = ERR_ACTN     ; action_map[{7, Token::ID}]  = SHFT_ACTN(5) ; action_map[{7, Token::EOI}]  = ERR_ACTN    ;
