@@ -4,8 +4,210 @@
 #include <stack>
 #include <map>
 #include <utility>
+#include <vector>
+#include <sstream>
+#include <algorithm>
+#include <functional>
 
 using namespace std;
+
+// FOR TREE DRAWING
+class TextBox {
+public:
+    struct xy {
+        TextBox& tb;
+        int x, y;
+
+        xy operator<< (const string& s) const {
+            return {tb, x + tb.puts(x, y, s), y};
+        }
+
+        xy operator<< (const int i) const {
+            string s = to_string(i);
+            return {tb, x + tb.puts(x, y, s), y};
+        }
+
+        xy operator<< (const char c) const {
+            tb.putc(x, y, c);
+            return {tb, x + 1, y};
+        }
+
+        xy operator<< (const TextBox& _tb) const {
+            tb.puttb(x, y, _tb);
+            return {tb, x + _tb.width(), y};
+        }
+    };
+
+    string str() const {
+        stringstream ss;
+        for (auto& s : m_buffer) {
+            //ss << s << '\n';
+            for (char c : s) {
+                if (c > 0b1111)
+                    ss << c;
+                else {
+                    switch (static_cast<int>(c) & 0b1111) {
+                        case 0b01:
+                            ss << '-';
+                            break;
+                        case 0b10:
+                            ss << '|';
+                            break;
+                        case 0b11:
+                            ss << '.';
+                            break;
+                        default:
+                            ss << c;
+                    }
+                }
+            }
+            ss << '\n';
+        }
+        return ss.str();
+    }
+    
+    TextBox::xy operator() (int x, int y) const {
+        return {const_cast<TextBox&>(*this), x, y};
+    }
+    
+
+    int width() const {
+        int w = -1;
+        for (auto& s : m_buffer) 
+            w = max(w, static_cast<int>(s.size()));
+        return w;
+    }
+
+    int height() const {
+        return m_buffer.size();
+    }
+
+    void hline(int x, int y, int width) {
+        if (y >= m_buffer.size())
+            m_buffer.resize(y+1);
+        if (x+width >= m_buffer[y].size())
+            m_buffer[y].resize(x+width, ' ');
+
+        for (int i = 0; i < width; i++) {
+            if (m_buffer[y][x+i] > 0b1111)
+                m_buffer[y][x+i] = 0;
+            m_buffer[y][x+i] |= 0b1;
+        }
+    }
+
+    void vline(int x, int y, int height) {
+        if (y+height >= m_buffer.size())
+            m_buffer.resize(y+height);
+        for (int i = 0; i < height; i++) {
+            if (x >= m_buffer[y+i].size())
+                m_buffer[y+i].resize(x+1, ' ');
+            if (m_buffer[y+i][x] > 0b1111)
+                m_buffer[y+i][x] = 0;
+            m_buffer[y+i][x] |= 0b10;
+        }
+    }
+
+private:
+
+    void putc(int x, int y, char c) {
+        if (y >= m_buffer.size())
+            m_buffer.resize(y+1);
+        if (x >= m_buffer[y].size())
+            m_buffer[y].resize(x+1, ' ');
+        m_buffer[y][x] = c;
+    }
+    
+    int puts(int x, int y, const string& s) {
+        if (s.empty()) return x;
+        for (int i = 0; i < s.size(); i++)
+            putc(x+i, y, s[i]);
+        return x + s.size();
+    }
+    
+    void puttb(int x, int y, const TextBox& tb) {
+        for (int i = 0; i < tb.height(); i++) {
+            puts(x, y+i, tb.m_buffer[i]);
+        }
+    }
+
+private:
+    vector<string> m_buffer;
+};
+
+
+struct Tree {
+    struct TreeNode {
+        string data;
+        vector<TreeNode> children;
+        
+        TreeNode(string _data) : data(_data)  {}
+
+        void add_child(string c) {
+            children.emplace_back(c);
+        }
+    };
+
+	bool rightmost_add(string& lhs, string& rhs) {
+		bool added = false;
+		_rightmost_add(root, lhs, rhs, added);
+		return added;
+	}
+
+	void _rightmost_add(TreeNode& n, string& lhs, string& rhs, bool& added) {
+		if (added) return;
+
+		if (n.children.size() == 0) {
+			if (n.data == lhs) {
+				if (rhs != "id") {
+					for (char c : rhs) n.children.emplace_back(string(1, c));
+				} else {
+					n.children.emplace_back("id");
+				}
+				added = true;
+			}
+		}
+
+		for (auto i = n.children.rbegin(); i < n.children.rend(); i++) {
+			_rightmost_add(*i, lhs, rhs, added);
+		}
+	}
+
+    TreeNode root;
+
+    Tree(string _root) : root(_root) {}
+    
+    friend ostream& operator<< (ostream& os, Tree& tree) {
+        TextBox tb = create_tree_textbox(tree.root);
+        os << tb.str();
+        return os;
+    }
+private:
+    static TextBox create_tree_textbox(const TreeNode& node) {
+        TextBox tb;
+        constexpr int padding = 2;
+        tb(0, 0) << node.data;
+        if (node.children.empty())
+            return tb;
+
+        vector<TextBox> child_tbs;
+        for (auto child : node.children)
+            child_tbs.push_back(create_tree_textbox(child));
+        
+        tb.vline(0, 1, 1);
+        int i = 0;
+        for (auto child : child_tbs) {
+            tb.vline(i, 2, 2);
+            tb(i, 4) << child;
+            i += child.width() + padding;
+        }
+        tb.hline(0, 2, i - child_tbs[child_tbs.size() - 1].width() - padding + 1);
+
+        return tb;
+    }
+};
+
+// TREE DRAWING END
+
 
 #define TOKEN_CASE(chr, tkn) \
 	case chr: \
@@ -14,7 +216,7 @@ using namespace std;
 
 template <class T, class Container = deque<T>>
 class printable_stack : public stack<T, Container> {
-	friend std::ostream& operator<<(ostream& os, const printable_stack<T, Container>& stk) {
+	friend ostream& operator<<(ostream& os, const printable_stack<T, Container>& stk) {
 		stringstream ss;
 		ss << "[";
 		for (auto i : stk.c)
@@ -173,8 +375,11 @@ public:
 				parse_stack.push(goto_map[{t, ra->production_lhs}]);
 				cout << left << setw(25) << parse_stack << setw(25) << token_to_str(a) << setw(25) << lex << setw(25) << "Reduce by " + ra->production_lhs + " -> " + ra->production_rhs << endl;
 				//cout << "Using production " << ra->production_lhs << " -> " << ra->production_rhs << endl;
+				production_stack.push({ra->production_lhs, ra->production_rhs});
 			} else if (action_map[{s, a}]->type == Action::Accept) {
 				cout << left << setw(25) << parse_stack << setw(25) << token_to_str(a) << setw(25) << lex << setw(25) << "Accepted" << endl;
+				Tree pt = create_parse_tree();
+				cout << "\nThe parse tree for the string is : \n" << pt << "\n";
 				return true;
 			} else {
 				error(a, lex);
@@ -186,6 +391,7 @@ private:
 	printable_stack<int> parse_stack;
 	map<pair<int, Token>, Action*> action_map;
 	map<pair<int, string>, int> goto_map;
+	stack<pair<string, string>> production_stack;
 
 	void error(Token cur_token, Lexer& lex) {
 		cout << "Encountered error while parsing : Unexpected token " << token_to_str(cur_token) << endl;
@@ -195,6 +401,15 @@ private:
 	void print_state() {
 		cout << "This is test string lol this string is supposed to be very big lol lets see";
 		cout << "lol " << endl;
+	}
+
+	Tree create_parse_tree() {
+		Tree parse_tree("E");
+		while (!production_stack.empty()) {
+			auto prod = production_stack.top(); production_stack.pop();
+			parse_tree.rightmost_add(prod.first, prod.second);
+		}
+		return parse_tree;
 	}
 };
 
