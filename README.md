@@ -6,4 +6,7 @@ here's a screenshot kek
 ![yea i hate me too kek](/screenshot.png?raw=true "screenshot kek")
 
 ### todo
-- [ ] Generate LR(1) Items from the grammar
+- [x] Generate LR(1) Items from the grammar
+- [x] Generate CLR Parse table 
+- [x] Find LALR Groupings
+- [x] Generate LALR Parse Table
