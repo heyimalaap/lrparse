@@ -4,3 +4,6 @@ yea the lexer is adhoc af if you were wondering, lmao.
 
 here's a screenshot kek
 ![yea i hate me too kek](/screenshot.png?raw=true "screenshot kek")
+
+### todo
+- [ ] Generate LR(1) Items from the grammar
