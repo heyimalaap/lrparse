@@ -789,6 +789,16 @@ struct Grammar {
 int main() {
 	Grammar grammar({{"E'", "E"}, {"E", "E+T"}, {"E", "T"}, {"T", "T*F"}, {"T", "F"}, {"F", "(E)"}, {"F", "id"}});
 
+	cout << "First of non-terminals: " << endl;
+	for (auto nt : {"E", "T", "F"}) {
+		auto first_set = grammar.first(nt);
+		cout << "FIRST(" << nt << ") =  {";
+		for (auto f : first_set)
+			cout << f << ", ";
+		cout << "}\n";
+	}
+	cout << endl;
+
 	cout << "Generated LR(1) Items: " << endl;
 	grammar.print_items();
 
